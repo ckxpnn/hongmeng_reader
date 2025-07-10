@@ -28,6 +28,12 @@
         "label": "阅读",
         "type": "page",
         "launchType": "standard"
+      },
+      {
+        "name": "com.example.harmonyapp.UserInfoAbility",
+        "label": "用户信息",
+        "type": "page",
+        "launchType": "standard"
       }
     ]
   }
