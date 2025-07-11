@@ -19,6 +19,18 @@
     {
       "name": "password",
       "value": "密码"
+    },
+    {
+      "name": "scan_documents",
+      "value": "扫描文档"
+    },
+    {
+      "name": "add_to_bookshelf",
+      "value": "添加到书架"
+    },
+    {
+      "name": "rescan",
+      "value": "重新扫描"
     }
   ]
 }

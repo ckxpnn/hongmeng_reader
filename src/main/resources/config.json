@@ -34,6 +34,12 @@
         "label": "用户信息",
         "type": "page",
         "launchType": "standard"
+      },
+      {
+        "name": "com.example.harmonyapp.ScanAbility",
+        "label": "扫描文档",
+        "type": "page",
+        "launchType": "standard"
       }
     ]
   }
