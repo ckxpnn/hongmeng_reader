@@ -11,12 +11,22 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
+import ohos.net.http.HttpClient;
+import ohos.net.http.HttpRequest;
+import ohos.net.http.HttpStringBody;
+import ohos.net.http.HttpResponseCallback;
+import ohos.net.http.HttpResponse;
+import ohos.app.dispatcher.TaskDispatcher;
+import ohos.app.dispatcher.task.TaskPriority;
 
 public class ReaderAbilitySlice extends AbilitySlice {
     private long startTime;
     private String username;
     private String bookTitle;
     private String filePath;
+    private float progress = 0.0f;
+    private String fileExtension;
+    private static final String API_URL = "https://your-backend.com/api/reading/progress";
 
     @Override
     public void onStart(Intent intent) {
@@ -43,11 +53,11 @@ public class ReaderAbilitySlice extends AbilitySlice {
         ScrollView scrollView = new ScrollView(this);
         scrollView.setWidth(ComponentContainer.LayoutConfig.MATCH_PARENT);
         scrollView.setHeight(ComponentContainer.LayoutConfig.MATCH_PARENT);
-        Text contentText = new Text(this);
-        contentText.setTextSize(40);
-        contentText.setMultipleLine(true);
-        contentText.setText(loadTxtContent(filePath));
-        scrollView.addComponent(contentText);
+        fileExtension = getFileExtension(filePath);
+        // 恢复进度
+        progress = ReadingProgressHelper.getProgress(this, username, filePath);
+        Component contentComponent = createContentComponent(filePath, fileExtension, progress);
+        scrollView.addComponent(contentComponent);
         layout.addComponent(scrollView);
 
         setUIContent(layout);
@@ -57,8 +67,11 @@ public class ReaderAbilitySlice extends AbilitySlice {
     public void onStop() {
         super.onStop();
         long endTime = System.currentTimeMillis();
-        float progress = 1.0f; // TODO: 可根据实际阅读进度实现
-        saveReadingRecord(username, bookTitle, filePath, startTime, endTime, progress);
+        // TODO: 真实进度获取逻辑
+        ReadingProgressHelper.saveProgress(this, username, filePath, progress);
+        float uploadProgress = progress;
+        uploadProgressToServer(username, filePath, bookTitle, uploadProgress, endTime);
+        saveReadingRecord(username, bookTitle, filePath, startTime, endTime, uploadProgress);
     }
 
     private String loadTxtContent(String filePath) {
@@ -110,6 +123,60 @@ public class ReaderAbilitySlice extends AbilitySlice {
             }
             prefs.putString(username, arr.toString());
             prefs.flushSync();
+        } catch (Exception ignore) {}
+    }
+
+    private Component createContentComponent(String filePath, String ext, float progress) {
+        Text contentText = new Text(this);
+        contentText.setTextSize(40);
+        contentText.setMultipleLine(true);
+        if (ext.equalsIgnoreCase("txt")) {
+            contentText.setText(loadTxtContent(filePath));
+            // TODO: 可根据progress滚动到指定位置
+        } else if (ext.equalsIgnoreCase("pdf")) {
+            contentText.setText("[PDF阅读功能待实现]");
+        } else if (ext.equalsIgnoreCase("epub")) {
+            contentText.setText("[EPUB阅读功能待实现]");
+        } else if (ext.equalsIgnoreCase("mobi")) {
+            contentText.setText("[MOBI阅读功能待实现]");
+        } else {
+            contentText.setText("暂不支持该格式: " + ext);
+        }
+        return contentText;
+    }
+
+    private String getFileExtension(String filePath) {
+        int lastDot = filePath.lastIndexOf('.');
+        if (lastDot > 0 && lastDot < filePath.length() - 1) {
+            return filePath.substring(lastDot + 1);
+        }
+        return "";
+    }
+
+    private void uploadProgressToServer(String username, String filePath, String bookTitle, float progress, long timestamp) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("username", username);
+            o.put("filePath", filePath);
+            o.put("bookTitle", bookTitle);
+            o.put("progress", progress);
+            o.put("timestamp", timestamp);
+            String jsonBody = o.toString();
+            TaskDispatcher dispatcher = getGlobalTaskDispatcher(TaskPriority.DEFAULT);
+            dispatcher.asyncDispatch(() -> {
+                HttpClient client = HttpClient.newBuilder().build();
+                HttpRequest request = HttpRequest.newBuilder(API_URL)
+                    .setBody(new HttpStringBody(jsonBody))
+                    .setMethod("POST")
+                    .addHeader("Content-Type", "application/json")
+                    .build();
+                client.sendRequest(request, new HttpResponseCallback() {
+                    @Override
+                    public void onResponse(HttpResponse response) {}
+                    @Override
+                    public void onFailed(Exception e) {}
+                });
+            });
         } catch (Exception ignore) {}
     }
 }
